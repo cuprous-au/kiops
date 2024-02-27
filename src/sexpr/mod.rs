@@ -1,9 +1,12 @@
 pub mod analysis;
+pub mod json;
 pub mod parser;
 pub mod simplifier;
 
 use std::{collections::VecDeque, fmt::Display};
 use uuid::Uuid;
+
+use self::simplifier::Simplifier;
 
 /// Indivisible values in an S-expression
 #[derive(Debug, PartialEq, Clone)]
@@ -17,37 +20,37 @@ pub enum Atom {
 }
 
 impl Atom {
-    pub fn string(&self) -> Option<&str> {
+    pub fn as_string(&self) -> Option<&str> {
         match self {
             Atom::Str(s) => Some(s),
             _ => None,
         }
     }
-    pub fn symbol(&self) -> Option<&str> {
+    pub fn as_symbol(&self) -> Option<&str> {
         match self {
             Atom::Symbol(s) => Some(s),
             _ => None,
         }
     }
-    pub fn num(&self) -> Option<f64> {
+    pub fn as_num(&self) -> Option<f64> {
         match self {
             Atom::Num(n) => Some(*n),
             _ => None,
         }
     }
-    pub fn bits(&self) -> Option<u64> {
+    pub fn as_bits(&self) -> Option<u64> {
         match self {
             Atom::Bits(n) => Some(*n),
             _ => None,
         }
     }
-    pub fn boolean(&self) -> Option<bool> {
+    pub fn as_boolean(&self) -> Option<bool> {
         match self {
             Atom::Bool(n) => Some(*n),
             _ => None,
         }
     }
-    pub fn uuid(&self) -> Option<Uuid> {
+    pub fn as_uuid(&self) -> Option<Uuid> {
         match self {
             Atom::Uuid(n) => Some(*n),
             _ => None,
@@ -111,14 +114,14 @@ impl Expr {
         Expr::List(VecDeque::new())
     }
 
-    pub fn is_atom(&self) -> Option<&Atom> {
+    pub fn as_atom(&self) -> Option<&Atom> {
         match self {
             Expr::Constant(a) => Some(a),
             _ => None,
         }
     }
 
-    pub fn is_list(&self) -> Option<&VecDeque<Expr>> {
+    pub fn as_list(&self) -> Option<&VecDeque<Expr>> {
         match self {
             Expr::List(value) => Some(value),
             _ => None,
@@ -137,6 +140,10 @@ impl Expr {
             Expr::List(elems) => Some(elems),
             _ => None,
         }
+    }
+
+    pub fn extract(&self, simplifier: &impl Simplifier) -> Option<Expr> {
+        simplifier.simplify(self)
     }
 }
 
@@ -159,11 +166,7 @@ impl Display for Atom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Atom::Symbol(v) => v.fmt(f),
-            Atom::Str(v) => {
-                "\"".fmt(f)?;
-                v.replace('"', "\\\"").fmt(f)?;
-                "\"".fmt(f)
-            }
+            Atom::Str(v) => serde_json::to_string(v).unwrap().fmt(f),
             Atom::Num(v) => v.fmt(f),
             Atom::Bits(v) => f.write_fmt(format_args!("0x{v:x}")),
             Atom::Bool(v) => v.fmt(f),

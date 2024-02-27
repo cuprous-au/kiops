@@ -7,18 +7,16 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::{char, hex_digit1, multispace0, satisfy},
-    combinator::{cut, map, map_opt, map_res, recognize},
+    combinator::{all_consuming, cut, map, map_opt, map_parser, map_res, recognize, rest},
     error::{context, VerboseError},
     multi::{many0, many1, many1_count},
     number::complete::double,
-    sequence::{delimited, preceded},
+    sequence::{delimited, preceded, terminated},
     AsChar, IResult, Parser,
 };
 use uuid::Uuid;
 
-/// Continuing the trend of starting from the simplest piece and building up,
-/// we start by creating a parser for our atoms.
-
+/// Reserved words true and false.
 fn parse_bool(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     alt((
         map(tag("true"), |_| Atom::Bool(true)),
@@ -31,18 +29,16 @@ fn parse_bool(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
 /// More specific atoms such as quoted strings or numbers should be matched
 /// before symbols.
 fn parse_symbol(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
-    let mut parser = map(is_not(" \t\r\n)("), |sym_str: &str| {
-        Atom::Symbol(sym_str.to_string())
-    });
+    let mut parser = map(rest, |sym_str: &str| Atom::Symbol(sym_str.to_string()));
     parser.parse(i)
 }
 
-/// Float parsing.
+/// A float.
 fn parse_num(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     map(double, Atom::Num).parse(i)
 }
 
-/// Hex parsing.
+/// A hex number starting with 0x.
 fn parse_bits(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     let digits = many1(satisfy(|x| x.is_hex_digit() || x == '_'));
     let hex = map_opt(digits, |s| {
@@ -51,6 +47,7 @@ fn parse_bits(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     map(preceded(tag("0x"), hex), Atom::Bits).parse(i)
 }
 
+/// Standard UUID syntax.
 fn parse_uuid(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     let segment = char('-').and(hex_digit1);
     map_res(
@@ -60,45 +57,79 @@ fn parse_uuid(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     .parse(i)
 }
 
+/// A scalar is a symbol or one of several types of number
+/// These are matched in most specific to least specific order.
+/// All the text up to a bracket or whitespace will be matched.
+fn parse_scalar(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
+    let mut parser = map_parser(
+        is_not(" \t\r\n)("),
+        all_consuming(
+            parse_uuid
+                .or(parse_bits)
+                .or(parse_num)
+                .or(parse_bool)
+                .or(parse_symbol),
+        ),
+    );
+    parser.parse(i)
+}
+
+/// Quoted string.
 fn parse_string(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
     map(strings::parse_string, Atom::Str).parse(i)
 }
 
-/// Now we take all these simple parsers and connect them.
-/// We can now parse half of our language!
+/// An atom is a quoted string or a scalar.
 fn parse_atom(i: &str) -> IResult<&str, Atom, VerboseError<&str>> {
-    parse_string
-        .or(parse_uuid)
-        .or(parse_bits)
-        .or(parse_num)
-        .or(parse_bool)
-        .or(parse_symbol)
-        .parse(i)
+    parse_string.or(parse_scalar).parse(i)
 }
 
-/// Wrap up an atom as an exporession
+/// An atom is a constant expression
 fn parse_constant(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
     map(parse_atom, Expr::Constant).parse(i)
 }
 
-/// A list of zero or more expressions in brackets.
-fn parse_brackets(i: &str) -> IResult<&str, Vec<Expr>, VerboseError<&str>> {
-    delimited(
-        char('('),
-        many0(parse_expr),
-        context("closing paren", cut(preceded(multispace0, char(')')))),
+/// A list is zero or more expressions in brackets.
+fn parse_list(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+    map(
+        delimited(
+            char('('),
+            parse_bare_list,
+            context("closing paren", cut(char(')'))),
+        ),
+        Expr::list,
     )
     .parse(i)
 }
 
-/// Wrap up a list of expressions as an expression.
-fn parse_list(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
-    map(context("list", parse_brackets), Expr::list).parse(i)
+/// An expression is either a list or a constant
+fn parse_expr(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+    parse_list.or(parse_constant).parse(i)
 }
 
-/// We tie them all together again, making a top-level expression parser!
-/// And that's it!
-/// We can now parse our entire lisp language.
-pub fn parse_expr(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
-    preceded(multispace0, parse_list.or(parse_constant)).parse(i)
+/// An unbracketed list of zero or more expressions.
+fn parse_bare_list(i: &str) -> IResult<&str, Vec<Expr>, VerboseError<&str>> {
+    preceded(multispace0, many0(terminated(parse_expr, multispace0))).parse(i)
+}
+
+/// The parser accepts a single expression,
+/// usually a a bracketed list.
+pub fn parse_s_expr(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+    all_consuming(delimited(multispace0, parse_expr, multispace0)).parse(i)
+}
+
+/// Not Working!
+///
+/// The parser accepts a single atom returning Expr::Constant
+/// or an unbracketed or bracketed list returning Expr::List.
+/// Empty input (or whitespace) returns and empty Expr::List.
+pub fn parse_s_exprs(i: &str) -> IResult<&str, Expr, VerboseError<&str>> {
+    map(all_consuming(parse_bare_list), |mut xs| {
+        if xs.len() == 1 {
+            xs.remove(0)
+        } else {
+            Expr::list(xs)
+        }
+    })
+    .parse(i)
 }

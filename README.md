@@ -6,17 +6,54 @@ KiCAD schematic, PCB, footprint, and symbol files are in [S-expression](https://
 
 The structure of a device tree is similar but the syntax is different. There is a separate parser for those.
 
-Once parsed, the KiCAD data can be transformed and then serialized as a new S-expression.  The parser/serializer are good enough to roundtrip the projects I have on hand without loss.
+Once parsed, the KiCAD data can be transformed and then serialized.  The parser/serializer are good enough to roundtrip the projects I have on hand without loss.
 
 ```
     KiCAD file -> parse -> transform -> serialize -> output file
 ```
 
-The transform step could be used to make a systematic change that preserves the structure, in which case the output file would be a valid KiCAD file.  Or it could be extracting information, such as symbol or footprint names, in which case the output would be a summary.  A limitation, for now, is that the output will always be an S-expression.
+The transform step could be used to make a systematic change that preserves the structure, in which case the output could be a valid KiCAD file.  Or it could be extracting information, such as symbol or footprint names, in which case the output would be a summary.  
+
+The output format can be an S-expression or JSON.  A JSON conversion is provided that does a reasonable job of finding objects in among the nested lists of an S-expression.
+
+## Command line Usage
+
+A basic executable is provided to summarize footprints and symbols and to convert KiCAD files to JSON.  But the software is more flexible when used as a library.  
+
+Commands:
+```sh
+./ki_parse footprints
+./ki_parse symbols
+./ki_parse sheets
+./ki_parse format
+./ki_merge symbol-library
+./dts_parse
+```
+
+### `ki_parse`
+
+ - `footprints` takes a PCB (`.kicad_pcb`) file on the standard input and produces a JSON summary of the footprints found.  
+ - `symbols` takes a schematic (`.kicad_sch`) file and summarizes its symbols 
+ - `sheets` summarizes schematic sheets 
+ - `format` command takes either type of file and produces a JSON translation 
+
+Appending `-s` to these commands produces an S-expression instead of JSON.
+
+### `ki_merge`
+
+This takes a symbol library on its standard input and the file name of another symbol library as its argument. Their contents are merged producing a new symbol library on the standard output.   
+
+The two libraries must have the same _version_ and _generator_ attributes.  (Use the KiCAD CLI to upgrade libraries.) Duplicate symbols are eliminated, the first symbol with a given name is kept.
+
+### `dts_parse` 
+
+This command takes device tree source and produces a JSON rendition of it. 
+
+
 
 ## Data Structure
 
-The core data structure looks like this:
+The core data structure for KiCAD S-expressions looks like this:
 
 ```rust
 pub enum Atom {
@@ -50,7 +87,7 @@ Any function `Fn(&Expr) -> Option<Expr>` is a simplifier (a blanket implementati
 
 ```rust
 pub fn trim(x: &Expr) -> Option<Expr> {
-    Some(x.is_atom()?.string()?.trim().into())
+    Some(x.as_atom()?.as_string()?.trim().into())
 }
 ```
 
@@ -97,15 +134,19 @@ pub fn extract_symbols(schematic: &Expr) -> Option<Expr> {
 |Combinator|Description|
 |---|---|
 |`Cons(H,T)`| match the head element of a `List` with `H` and the tail with `T` producing a new `List`|
+|`Head(H)`|  match the head element of a `List` with `H` extracting this from the list|
 |`Filter(X)`| match each element of a `List` with `X` producing a `List` of the successes|
+|`Find(X)` | match each element of a `List` with `X` extracting the first success from the list |
 |`Or(X,Y)`| match with `X` or, if that fails, match with `Y`|
 |`And(X,Y)`| match with `X` and, if that succeeds, match the simplified result with `Y`|
 |`Discard(X)`| match with `X` and, if that succeeds, replace with an empty `List`|
 
 Special case: `Cons(Discard(H), T)` produces the result of `T` if `H` and `T` succeed.
 
-### Footnote about rust pattern matching
+## Rationale for `Simplifier`
 
-The motivation for the `Simplifier` trait is the difficulty of pattern matching over a recursive  data structure in rust.  These will always contain smart pointers such as `Rc`, `Box` or `Vec` which cannot be destructured in a `match`. 
+The motivation for the `Simplifier` trait is that pattern matching over a recursive  data structure in is inconvenient in rust.  These will always contain smart pointers such as `Rc`, `Box` or `Vec` which cannot be destructured in a `match`. 
 
-The work around, short of writing a lot of boilerplate, is to provide helpers such as `Expr::is_atom()` and `Simplifier::simplify(_)` that return `Option`.   Pattern matching with recursion is bread and butter functional programming style and one day it will be available in rust. But not yet.
+We can write nested `match` expressions but helpers such as `Expr::as_list()`, `Expr::as_atom()` that return `Option` work better. Rust likes `Option`s.  The ultimate such helper is `Simplifier::simplify(_)` which enables the combinator scheme here. 
+
+Pattern matching over recursive structures is bread and butter functional programming style and one day it will be available in rust. But not yet.

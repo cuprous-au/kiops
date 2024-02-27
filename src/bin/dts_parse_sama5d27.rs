@@ -1,10 +1,13 @@
-use kiops::dts::{
-    analysis::{Analysis, LabelView, Xref},
-    Node,
+use kiops::{
+    dts::{
+        analysis::{Analysis, LabelView, Xref},
+        parser::tree,
+        Node,
+    },
+    parse_file::{parse_file, write_file, Result},
 };
-use std::fs;
 
-fn main() {
+fn main() -> Result<()> {
     let mut all_nodes: Vec<Node> = Vec::new();
 
     for fp in [
@@ -12,19 +15,18 @@ fn main() {
         "data/linux/arch/arm/boot/dts/at91-sama5d27_wlsom1.dtsi",
         "data/linux/arch/arm/boot/dts/at91-sama5d27_wlsom1_ek.dts",
     ] {
-        if let Ok(nodes) = kiops::parse_file::parse_file(fp, kiops::dts::parser::tree) {
-            all_nodes.extend(nodes)
-        }
+        let nodes = parse_file(fp, tree)?;
+        all_nodes.extend(nodes)
     }
 
     let analysis = Analysis::new(all_nodes);
-    fs::write("results/sama5d27-analysis.log", analysis.to_string())
-        .expect("Could not create output file");
+    write_file("results/sama5d27-analysis.log", &analysis)?;
 
     let xref = Xref::new(&analysis, |s| s.starts_with("PIN_"));
-    fs::write("results/sama5d27-xref.log", xref.to_string()).expect("Could not create output file");
+    write_file("results/sama5d27-xref.log", &xref)?;
 
     let lview = LabelView::new(&analysis);
-    fs::write("results/sama5d27-labels.md", lview.to_string())
-        .expect("Could not create output file");
+    write_file("results/sama5d27-labels.md", &lview)?;
+
+    Ok(())
 }

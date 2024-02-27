@@ -17,7 +17,7 @@ where
 
 impl Simplifier for Atom {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
-        if subject.is_atom()? == self {
+        if subject.as_atom()? == self {
             Some(subject.clone())
         } else {
             None
@@ -27,7 +27,7 @@ impl Simplifier for Atom {
 
 impl Simplifier for &'static str {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
-        if subject.is_atom()?.symbol()? == *self {
+        if subject.as_atom()?.as_symbol()? == *self {
             Some(subject.clone())
         } else {
             None
@@ -39,7 +39,7 @@ pub struct AnyNum;
 
 impl Simplifier for AnyNum {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
-        if subject.is_atom()?.num().is_some() {
+        if subject.as_atom()?.as_num().is_some() {
             Some(subject.clone())
         } else {
             None
@@ -51,7 +51,7 @@ pub struct AnyStr;
 
 impl Simplifier for AnyStr {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
-        if subject.is_atom()?.string().is_some() {
+        if subject.as_atom()?.as_string().is_some() {
             Some(subject.clone())
         } else {
             None
@@ -87,7 +87,7 @@ where
     B: Simplifier,
 {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
-        let elems = subject.is_list()?;
+        let elems = subject.as_list()?;
         let elem = elems.front()?;
         let head = self.0.simplify(elem)?;
         let mut elems = elems.clone();
@@ -101,6 +101,17 @@ where
             tail
         };
         Some(l)
+    }
+}
+
+pub struct Head<A>(pub A);
+
+impl<A> Simplifier for Head<A>
+where
+    A: Simplifier,
+{
+    fn simplify(&self, subject: &Expr) -> Option<Expr> {
+        self.0.simplify(subject.as_list()?.front()?)
     }
 }
 
@@ -137,8 +148,19 @@ where
 {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
         Some(Expr::list(
-            subject.is_list()?.iter().filter_map(|x| self.0.simplify(x)),
+            subject.as_list()?.iter().filter_map(|x| self.0.simplify(x)),
         ))
+    }
+}
+
+pub struct Find<A>(pub A);
+
+impl<A> Simplifier for Find<A>
+where
+    A: Simplifier,
+{
+    fn simplify(&self, subject: &Expr) -> Option<Expr> {
+        subject.as_list()?.iter().find_map(|x| self.0.simplify(x))
     }
 }
 
@@ -150,5 +172,13 @@ where
 {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
         self.0.simplify(subject).is_some().then_some(Expr::empty())
+    }
+}
+
+pub struct LabelAs(pub &'static str);
+
+impl Simplifier for LabelAs {
+    fn simplify(&self, subject: &Expr) -> Option<Expr> {
+        Some(Expr::list([Expr::key(self.0), subject.clone()]))
     }
 }
