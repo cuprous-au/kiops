@@ -1,6 +1,6 @@
 # Extracting data from KiCAD files
 
-This repo contains experimental software for parsing [KiCAD](https://kicad.org/) electronic design files and extracting information from them.  There is also a parser for [device tree](https://devicetree.org) files and some miscellaneous _nushell_ helper scripts.
+This repo contains experimental software for parsing [KiCAD](https://kicad.org/) electronic design files and extracting information from them.  There is also a parser for [device tree](https://devicetree.org) files and some _nushell_ helper scripts.
 
 KiCAD schematic, PCB, footprint, and symbol files are in [S-expression](https://en.wikipedia.org/wiki/S-expression) form.  The parser here was adapted from the example in the [Nom](https://github.com/rust-bakery/nom) project. 
 
@@ -49,7 +49,20 @@ The two libraries must have the same _version_ and _generator_ attributes.  (Use
 
 This command takes device tree source and produces a JSON rendition of it. 
 
+## `nushell` module
 
+A [`nushell`](nushell.sh) module provides higher level commands.  
+
+```nushell
+nushell> use kiops.nu
+nushell> $env.kiops_lib_location = <kicad-libs-location>
+nushell> kiops upgrade footprints
+nushell> kiops upgrade symlibs
+nushell> kiops merge symlibs
+nushell> kiops install libs <project_dir>
+nushell> kiops survey symbols <project_dir>
+nushell> kiops survey footprints <project_dir>
+```
 
 ## Data Structure
 
@@ -71,7 +84,7 @@ pub enum Expr {
 }
 ```
 
-The `From<X>` trait is implemented for `Atom` and `Expr` for various types `X` and extraction methods yielding `Option<X>` are provided.
+The `From<X>` trait is implemented for `Atom` and `Expr` with various types `X` and extraction methods `as_X` yielding `Option<X>` are defined.
 
 ## Simplifiers
 
