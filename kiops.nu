@@ -46,9 +46,9 @@ export def "install libs" [dest: string] {
     }
 }
 
-export def "survey pcbs" [tree] {
+export def "survey pcbs" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
-    (ls data/kicad/**/*.kicad_pcb
+    (ls **/*.kicad_pcb
         | insert footprints { |p| open --raw $p.name | ^$ki_parse footprints | from json}
         | select name footprints
         | flatten -a
@@ -57,7 +57,7 @@ export def "survey pcbs" [tree] {
 
 export def "survey symbols" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
-    (ls data/kicad/**/*.kicad_sch
+    (ls **/*.kicad_sch
         | insert symbols { |p| open --raw $p.name | ^$ki_parse symbols | from json}
         | select name symbols
         | flatten -a
@@ -66,9 +66,66 @@ export def "survey symbols" [] {
 
 export def "survey sheets" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
-    (ls data/kicad/**/*.kicad_sch
+    (ls **/*.kicad_sch
         | insert sheets { |p| open --raw $p.name | ^$ki_parse sheets | from json}
         | select name sheets
         | flatten -a
     )
+}
+
+export def "fabricate" [projdir: string dest: string = "plot"] {
+    cd $projdir
+    let input = glob *.kicad_pcb | first
+    let stem = ($input | path parse).stem
+    let output = $stem ++ "-" ++ (date now |  format date %F) ++ ".zip"
+
+    rm -rf $dest
+    mkdir $dest
+    
+    ^$env.kicad_cli pcb export drill $input --output ($dest | path join "")
+    ^$env.kicad_cli pcb export gerbers $input --output ($dest | path join "")
+    ^$env.kicad_cli pcb export pos $input --output ($dest | path join ($stem ++ ".pos"))
+    bom . | save ($dest | path join ($stem ++ "-bom.csv"))
+    bom-grouped . | save ($dest | path join ($stem ++ "-grouped-bom.csv"))
+
+    rm -f $output
+    ^zip -r  $output $dest
+}
+
+export def "bom" [projdir: string] {
+    cd $projdir
+    let ki_parse = $env.kiops_bin | path join ki_parse
+    (glob *.kicad_sch 
+        | each { |s| open $s | ^$ki_parse symbols  | from json } 
+        | flatten 
+        | where lib_id != "Connector:TestPoint" and unit == 1
+        | update dnp { |r| if $r.dnp == "yes" {"DNP"} else {""}}
+        | sort-by --natural reference
+        | select reference manufacturer? MPN? value description? dnp supply?)
+}
+
+export def bom-grouped [projdir: string] {
+    def gather [] {uniq | str join " "}
+    (bom . 
+        | where dnp != "DNP" 
+        | group-by --to-table MPN 
+        | each { |r|   
+            let items = $r.items
+            
+            { 
+                refs: ($items.reference | gather)
+                manufacturer: ($items.manufacturer | gather)
+                MPN: ($items.MPN | first)
+                value: ($items.value | gather)
+                description: ($items.description | gather)
+                count: ($items | length)
+                supply: ($items.supply | gather)
+            }
+        })
+}
+
+export def "step" [projdir: string] {
+    cd $projdir
+    let input = glob *.kicad_pcb | first
+    ^$env.kicad_cli pcb export step --subst-models --force $input
 }

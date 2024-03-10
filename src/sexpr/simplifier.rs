@@ -4,6 +4,20 @@ pub use super::Atom::*;
 
 pub trait Simplifier {
     fn simplify(&self, subject: &Expr) -> Option<Expr>;
+
+    fn or(self, other: impl Simplifier) -> impl Simplifier
+    where
+        Self: Sized,
+    {
+        Or(self, other)
+    }
+
+    fn and(self, other: impl Simplifier) -> impl Simplifier
+    where
+        Self: Sized,
+    {
+        And(self, other)
+    }
 }
 
 impl<F> Simplifier for F
@@ -35,6 +49,7 @@ impl Simplifier for &'static str {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AnyNum;
 
 impl Simplifier for AnyNum {
@@ -47,6 +62,7 @@ impl Simplifier for AnyNum {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AnyStr;
 
 impl Simplifier for AnyStr {
@@ -59,6 +75,7 @@ impl Simplifier for AnyStr {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Anything;
 
 impl Simplifier for Anything {
@@ -67,6 +84,7 @@ impl Simplifier for Anything {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Nothing;
 
 impl Simplifier for Nothing {
@@ -79,6 +97,7 @@ impl Simplifier for Nothing {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Cons<A, B>(pub A, pub B);
 
 impl<A, B> Simplifier for Cons<A, B>
@@ -104,6 +123,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Head<A>(pub A);
 
 impl<A> Simplifier for Head<A>
@@ -115,6 +135,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Or<A, B>(pub A, pub B);
 
 impl<A, B> Simplifier for Or<A, B>
@@ -128,6 +149,7 @@ where
             .or_else(|| self.1.simplify(subject))
     }
 }
+#[derive(Debug, Clone)]
 pub struct And<A, B>(pub A, pub B);
 
 impl<A, B> Simplifier for And<A, B>
@@ -140,6 +162,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Filter<A>(pub A);
 
 impl<A> Simplifier for Filter<A>
@@ -153,6 +176,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Find<A>(pub A);
 
 impl<A> Simplifier for Find<A>
@@ -164,6 +188,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Discard<A>(pub A);
 
 impl<A> Simplifier for Discard<A>
@@ -175,6 +200,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LabelAs(pub &'static str);
 
 impl Simplifier for LabelAs {
