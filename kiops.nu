@@ -85,14 +85,14 @@ export def "fabricate" [projdir: string dest: string = "plot"] {
     ^$env.kicad_cli pcb export drill $input --output ($dest | path join "")
     ^$env.kicad_cli pcb export gerbers $input --output ($dest | path join "")
     ^$env.kicad_cli pcb export pos $input --output ($dest | path join ($stem ++ ".pos"))
-    bom . | save ($dest | path join ($stem ++ "-bom.csv"))
-    bom-grouped . | save ($dest | path join ($stem ++ "-grouped-bom.csv"))
+    create bom . | save ($dest | path join ($stem ++ "-bom.csv"))
+    create bom-grouped . | save ($dest | path join ($stem ++ "-grouped-bom.csv"))
 
     rm -f $output
     ^zip -r  $output $dest
 }
 
-export def "bom" [projdir: string] {
+export def "create bom" [projdir: string] {
     cd $projdir
     let ki_parse = $env.kiops_bin | path join ki_parse
     (glob *.kicad_sch 
@@ -104,9 +104,9 @@ export def "bom" [projdir: string] {
         | select reference manufacturer? MPN? value description? dnp supply?)
 }
 
-export def bom-grouped [projdir: string] {
+export def "create bom-grouped" [projdir: string] {
     def gather [] {uniq | str join " "}
-    (bom . 
+    (create bom $projdir 
         | where dnp != "DNP" 
         | group-by --to-table MPN 
         | each { |r|   
