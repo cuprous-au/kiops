@@ -99,6 +99,7 @@ export def "create bom" [projdir: string] {
         | each { |s| open $s | ^$ki_parse symbols  | from json } 
         | flatten 
         | where lib_id != "Connector:TestPoint" and unit == 1
+        | each { |r| if $r.dnp != "yes" and $r.MPN? == null {print -e ("Missing MPN for " ++ $r.reference)}; $r }
         | update dnp { |r| if $r.dnp == "yes" {"DNP"} else {""}}
         | sort-by --natural reference
         | select reference manufacturer? MPN? value description? dnp supply?)
