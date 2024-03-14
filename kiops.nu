@@ -115,7 +115,7 @@ export def "create bom-grouped" [projdir: string] {
             { 
                 refs: ($items.reference | gather)
                 manufacturer: ($items.manufacturer | gather)
-                MPN: ($items.MPN | first)
+                MPN: $r.group
                 value: ($items.value | gather)
                 description: ($items.description | gather)
                 count: ($items | length)
