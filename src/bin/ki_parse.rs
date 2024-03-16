@@ -13,18 +13,13 @@ fn main() -> Result<()> {
     let command = args.next().ok_or(usage)?;
     let want_sexpr = args.next().is_some_and(|s| s == "-s");
 
-    let simplifier: Box<dyn Simplifier> = match &*command {
-        "footprints" => Box::new(footprints()),
-        "symbols" => Box::new(symbols()),
-        "sheets" => Box::new(sheets()),
-        "format" => Box::new(|x: &Expr| Some(x.clone())),
+    let output = match &*command {
+        "footprints" => run(footprints())?,
+        "symbols" => run(symbols())?,
+        "sheets" => run(sheets())?,
+        "format" => run(|x: &Expr| Some(x.clone()))?,
         _ => Err("argument not recognised")?,
     };
-    let input = parse_stdin(parse_s_expr)?;
-
-    let output = simplifier
-        .simplify(&input)
-        .ok_or("unrecognised file contents")?;
 
     if want_sexpr {
         write_stdout(&output)?;
@@ -32,5 +27,14 @@ fn main() -> Result<()> {
         let json = expr_to_json_value(output);
         write_stdout(&json)?;
     }
+
     Ok(())
+}
+
+fn run(simplifier: impl Simplifier) -> Result<Expr> {
+    let input = parse_stdin(parse_s_expr)?;
+
+    Ok(simplifier
+        .simplify(&input)
+        .ok_or("unrecognised file contents")?)
 }
