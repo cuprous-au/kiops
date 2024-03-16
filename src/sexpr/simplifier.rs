@@ -2,7 +2,7 @@ use super::{Atom, Expr};
 
 pub use super::Atom::*;
 
-pub trait Simplifier {
+pub trait Simplifier: Clone {
     fn simplify(&self, subject: &Expr) -> Option<Expr>;
 
     fn or(self, other: impl Simplifier) -> impl Simplifier
@@ -22,7 +22,7 @@ pub trait Simplifier {
 
 impl<F> Simplifier for F
 where
-    F: Fn(&Expr) -> Option<Expr>,
+    F: Fn(&Expr) -> Option<Expr> + Clone,
 {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
         (self)(subject)
@@ -197,6 +197,21 @@ where
 {
     fn simplify(&self, subject: &Expr) -> Option<Expr> {
         self.0.simplify(subject).is_some().then_some(Expr::empty())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Ensure<A>(pub A);
+
+impl<A> Simplifier for Ensure<A>
+where
+    A: Simplifier,
+{
+    fn simplify(&self, subject: &Expr) -> Option<Expr> {
+        self.0
+            .simplify(subject)
+            .is_some()
+            .then_some(subject.clone())
     }
 }
 
