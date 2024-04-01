@@ -102,7 +102,7 @@ export def "create bom" [projdir: string] {
         | each { |r| if $r.dnp != "yes" and $r.MPN? == null {print -e ("Missing MPN for " ++ $r.reference)}; $r }
         | update dnp { |r| if $r.dnp == "yes" {"DNP"} else {""}}
         | sort-by --natural reference
-        | select reference manufacturer? MPN? value description? dnp supply?)
+        | select reference manufacturer? MPN? value description? footprint? dnp supply?)
 }
 
 export def "create bom-grouped" [projdir: string] {
@@ -119,6 +119,7 @@ export def "create bom-grouped" [projdir: string] {
                 MPN: $r.group
                 value: ($items.value | gather)
                 description: ($items.description | gather)
+                footprint: ($items.footprint | gather)
                 count: ($items | length)
                 supply: ($items.supply | gather)
             }
