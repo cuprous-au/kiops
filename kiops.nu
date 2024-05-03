@@ -73,7 +73,11 @@ export def "survey sheets" [] {
     )
 }
 
-export def "fabricate" [projdir: string dest: string = "plot"] {
+# Generate fabrication files from a KiCAD project.
+export def "fabricate" [
+    projdir: path # The directory containing the KiCAD project
+    dest: string = "plot" # The directory for the output, relative to projdir
+] {
     cd $projdir
     let input = glob *.kicad_pcb | first
     let stem = ($input | path parse).stem
@@ -126,8 +130,16 @@ export def "create bom-grouped" [projdir: string] {
         })
 }
 
-export def "step" [projdir: string] {
+export def "render step" [projdir: string] {
     cd $projdir
     let input = glob *.kicad_pcb | first
     ^$env.kicad_cli pcb export step --subst-models --force $input
+}
+
+
+export def "render pdf" [projdir: string] {
+    cd $projdir
+    let project = glob *.kicad_pro | first
+    let input = $project | path parse | get stem | append "kicad_sch" | str join "." 
+    ^$env.kicad_cli sch export pdf $input
 }
