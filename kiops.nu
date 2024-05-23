@@ -91,7 +91,8 @@ export def "fabricate" [
     ^$env.kicad_cli pcb export pos $input --output ($dest | path join ($stem ++ ".pos"))
     create bom . | save ($dest | path join ($stem ++ "-bom.csv"))
     create bom-grouped . | save ($dest | path join ($stem ++ "-grouped-bom.csv"))
-
+    if ("COPYRIGHT" | path exists) { cp "COPYRIGHT" $dest }
+    
     rm -f $output
     ^zip -r  $output $dest
 }
