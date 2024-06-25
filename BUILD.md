@@ -1,19 +1,21 @@
 # Building
 
-First build the rust code:
+We assume [rust and cargo](https://rustup.rs) and [`nushell`](https://www.nushell.sh/#get-nu). Grab those via the foregoing links, I will wait.
+
+Now build the kiops rust code:
 
 ```
 cargo build --release
 ```
 
-Next import the nushell module:
+And import the nushell module:
 
 ```
 $ nu
 > use kiops.nu
 ```
 
-Now adjust environment variables if necessary. To set the location of the KiCAD CLI (the default is shown here):
+Now adjust environment variables if necessary. Set the location of the KiCAD CLI (the default is shown here):
 
 ```
 > $env.kicad_cli = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli" 
