@@ -2,6 +2,8 @@
 
 This repo contains experimental software for parsing [KiCAD](https://kicad.org/) electronic design files and extracting information from them.  There is also a parser for [device tree](https://devicetree.org) files and some _nushell_ helper scripts.
 
+If you need a quick start to generate BOM and other fabrication files see: BUILD.md
+
 KiCAD schematic, PCB, footprint, and symbol files are in [S-expression](https://en.wikipedia.org/wiki/S-expression) form.  The parser here was adapted from the example in the [Nom](https://github.com/rust-bakery/nom) project. 
 
 The structure of a device tree is similar but the syntax is different. There is a separate parser for those.
