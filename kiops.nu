@@ -4,16 +4,19 @@ export-env {
     $env.kicad_cli = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli" 
 }
 
+# Run a KiCAD CLI command
 export def ki [subject: string verb: string object: string] {
     ^$env.kicad_cli $subject $verb $object
 }
 
+# Upgrade all the footprints in the Cuprous library to the latest KiCAD version
 export def "upgrade footprints" [] {
     let dir = $env.kiops_lib_location | path join "Cuprous.pretty"
     let result = (ki fp upgrade $dir)
     [$dir $result]
 }
 
+# Upgrade all the symbols in the Cuprous library to the latest KiCAD version
 export def "upgrade symlibs" [] {
     let dir = $env.kiops_lib_location | path join "symlibs"
     ls ($dir | path join *.kicad_sym) | each { |p|  
@@ -22,6 +25,8 @@ export def "upgrade symlibs" [] {
     }
 }
 
+# Merge all the symbols in the Cuprous library into a single 
+# file: Cuprous.kicad_sym for convenient use in projects.
 export def "merge symlibs" [] {
     let ki_merge = $env.kiops_bin | path join ki_merge
     let output = $env.kiops_lib_location | path join "Cuprous.kicad_sym"
@@ -34,18 +39,25 @@ export def "merge symlibs" [] {
     $merged | save --raw --force $output
 }
 
-export def "install libs" [dest: string] {
-    if ($dest | path type) != dir {
+# Install a copy of the Cuprous library in a KiCAD project.
+# This effectively replaces any other library 
+# except the built in KiCAD libraries.
+export def "install libs" [
+    projdir: path # The directory containing the KiCAD project
+] {
+    if ($projdir | path type) != dir {
         return "destination does not exist or not a directory"
     } 
-    let fplib = $dest | path join Cuprous.pretty
+    let fplib = $projdir | path join Cuprous.pretty
     mkdir $fplib
     ls ($env.kiops_lib_location | path join "Cuprous.pretty" "*") | each {|p| cp $p.name $fplib}
     [Cuprous.kicad_sym fp-lib-table sym-lib-table] | each { |name|
-        cp ($env.kiops_lib_location | path join $name) ($dest | path join $name) 
+        cp ($env.kiops_lib_location | path join $name) ($projdir | path join $name) 
     }
 }
 
+# List all the footprints in all KiCAD PCB files found under the current directory.
+# This may span multiple KiCAD projects.
 export def "survey pcbs" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
     (ls **/*.kicad_pcb
@@ -55,6 +67,8 @@ export def "survey pcbs" [] {
     )
 }
 
+# List all the symbols in all KiCAD schematic files found under the current directory.
+# This may span multiple KiCAD projects.
 export def "survey symbols" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
     (ls **/*.kicad_sch
@@ -64,6 +78,8 @@ export def "survey symbols" [] {
     )
 }
 
+# List all the sheets in all KiCAD schematic files found under the current directory.
+# This may span multiple KiCAD projects.
 export def "survey sheets" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
     (ls **/*.kicad_sch
@@ -97,7 +113,12 @@ export def "fabricate" [
     ^zip -r  $output $dest
 }
 
-export def "create bom" [projdir: string] {
+
+# Create a flat Bill of Materials (BOM) from the 
+# KiCAD schematic files found in the given directory
+export def "create bom" [
+    projdir: path # The directory containing the KiCAD project
+] {
     cd $projdir
     let ki_parse = $env.kiops_bin | path join ki_parse
     (glob *.kicad_sch 
@@ -110,7 +131,11 @@ export def "create bom" [projdir: string] {
         | select reference manufacturer? MPN? value description? footprint? dnp supply?)
 }
 
-export def "create bom-grouped" [projdir: string] {
+# Create a Bill of Materials (BOM) grouped by part number from the 
+# KiCAD schematic files found in the given directory
+export def "create bom-grouped" [
+    projdir: path # The directory containing the KiCAD project
+] {
     def gather [] {uniq | str join " "}
     (create bom $projdir 
         | where dnp != "DNP" 
@@ -131,14 +156,21 @@ export def "create bom-grouped" [projdir: string] {
         })
 }
 
-export def "render step" [projdir: string] {
+# Create a STEP 3D design file from the 
+# KiCAD PCB file found in the given directory
+export def "render step" [
+    projdir: path # The directory containing the KiCAD project
+] {
     cd $projdir
     let input = glob *.kicad_pcb | first
     ^$env.kicad_cli pcb export step --subst-models --force $input
 }
 
-
-export def "render pdf" [projdir: string] {
+# Create a PDF schematic file from the 
+# KiCAD project in the given directory.
+export def "render pdf" [
+    projdir: path # The directory containing the KiCAD project
+] {
     cd $projdir
     let project = glob *.kicad_pro | first
     let input = $project | path parse | get stem | append "kicad_sch" | str join "." 
