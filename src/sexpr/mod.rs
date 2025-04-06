@@ -2,6 +2,7 @@ pub mod analysis;
 pub mod json;
 pub mod parser;
 pub mod simplifier;
+pub mod symlib;
 
 use std::{collections::VecDeque, fmt::Display};
 use uuid::Uuid;
