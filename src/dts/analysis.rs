@@ -109,7 +109,7 @@ impl Analysis {
     }
 
     /// Iterator over children of a node
-    pub fn children<'a>(&'a self, path: &Path) -> impl Iterator<Item = (&Path, &Node)> + 'a {
+    pub fn children(&self, path: &Path) -> impl Iterator<Item = (&Path, &Node)> {
         let base = path.len();
         self.paths
             .contains_key(path)
