@@ -1,6 +1,6 @@
 use crate::sexpr::simplifier::{Anything, Cons, Discard, Filter, Find, Head, Simplifier};
 use crate::sexpr::Expr;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::iter::once;
 
 const HEADING: &str = "kicad_symbol_lib";
@@ -42,7 +42,7 @@ pub fn unique(symbols: impl Iterator<Item = Expr>) -> impl Iterator<Item = Expr>
     group(symbols).into_iter().map(|(_, v)| v)
 }
 
-pub fn group(symbols: impl Iterator<Item = Expr>) -> HashMap<String, Expr> {
+pub fn group(symbols: impl Iterator<Item = Expr>) -> BTreeMap<String, Expr> {
     symbols.filter_map(|s| Some((name_in(&s)?, s))).collect()
 }
 
