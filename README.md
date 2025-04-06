@@ -47,6 +47,13 @@ This takes a symbol library on its standard input and the file name of another s
 
 The two libraries must have the same _version_ and _generator_ attributes.  (Use the KiCAD CLI to upgrade libraries.) Duplicate symbols are eliminated, the first symbol with a given name is kept.
 
+### `ki_split`
+
+Produces a series of symbol libraries each containing a single symbol from an input symbol library.  
+The input symbol library is read on the standard input.  The argument is the name of an existing directory
+where the output symbol libraries will be created.  Each output file is named for the symbol it contains,
+santised to make a valid file name.
+
 ### `dts_parse` 
 
 This command takes device tree source and produces a JSON rendition of it. 
@@ -157,11 +164,3 @@ pub fn extract_symbols(schematic: &Expr) -> Option<Expr> {
 |`Discard(X)`| match with `X` and, if that succeeds, replace with an empty `List`|
 
 Special case: `Cons(Discard(H), T)` produces the result of `T` if `H` and `T` succeed.
-
-## Rationale for `Simplifier`
-
-The motivation for the `Simplifier` trait is that pattern matching over a recursive  data structure in is inconvenient in rust.  These will always contain smart pointers such as `Rc`, `Box` or `Vec` which cannot be destructured in a `match`. 
-
-We can write nested `match` expressions but helpers such as `Expr::as_list()`, `Expr::as_atom()` that return `Option` work better. Rust likes `Option`s.  The ultimate such helper is `Simplifier::simplify(_)` which enables the combinator scheme here. 
-
-Pattern matching over recursive structures is bread and butter functional programming style and one day it will be available in rust. But not yet.
