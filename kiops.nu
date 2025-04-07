@@ -9,34 +9,48 @@ export def ki [subject: string verb: string object: string] {
     ^$env.kicad_cli $subject $verb $object
 }
 
-# Upgrade all the footprints in the Cuprous library to the latest KiCAD version
-export def "upgrade footprints" [] {
-    let dir = $env.kiops_lib_location | path join "Cuprous.pretty"
-    let result = (ki fp upgrade $dir)
-    [$dir $result]
+# Upgrade all the footprints in a directory to the latest KiCAD version
+export def "upgrade footprints" [
+    footprint_dir: path
+] {
+    let result = (ki fp upgrade $footprint_dir)
+    [$footprint_dir $result]
 }
 
-# Upgrade all the symbols in the Cuprous library to the latest KiCAD version
-export def "upgrade symlibs" [] {
-    let dir = $env.kiops_lib_location | path join "symlibs"
-    ls ($dir | path join *.kicad_sym) | each { |p|  
+# Upgrade all the symbol libraries in a directory to latest KiCAD version
+export def "upgrade symlibs" [
+    symbol_dir: path
+] {
+    ls ($symbol_dir | path join *.kicad_sym) | each { |p|  
         let result = (ki sym upgrade $p.name) 
         [$p.name $result]
     }
 }
 
-# Merge all the symbols in the Cuprous library into a single 
-# file: Cuprous.kicad_sym for convenient use in projects.
-export def "merge symlibs" [] {
+# Merge all symbol libraries in a directory into a single symbol library.  
+export def "merge symlibs" [
+    symbols_dir: path
+    symlib: path
+] {
     let ki_merge = $env.kiops_bin | path join ki_merge
-    let output = $env.kiops_lib_location | path join "Cuprous.kicad_sym"
-    let input = $env.kiops_lib_location | path join "symlibs"
-    let symlibs = ls ($input | path join *.kicad_sym) 
+    let symlibs = ls ($symbols_dir | path join *.kicad_sym) 
     let accum = open --raw ($symlibs | get 0.name)
     let merged = $symlibs | skip 1 | reduce --fold $accum { |p, accum|  
         $accum | ^$ki_merge $p.name 
     }
-    $merged | save --raw --force $output
+    $merged | save --raw --force $symlib
+}
+
+# Split a symbol library into separate files. 
+# Each file will be a symbol library containing a single symbol.
+export def "split symlibs" [
+    symlib: path # the symbol library to be split
+    symbols_dir: path  # the output directory (created if not found)
+] {
+    let ki_split = $env.kiops_bin | path join ki_split
+    mkdir $symbols_dir
+    open --raw $symlib | ^$ki_split $symbols_dir
+    
 }
 
 # Install a copy of the Cuprous library in a KiCAD project.
@@ -48,10 +62,10 @@ export def "install libs" [
     if ($projdir | path type) != dir {
         return "destination does not exist or not a directory"
     } 
-    let fplib = $projdir | path join Cuprous.pretty
+    let fplib = $projdir | path join cuprous.pretty
     mkdir $fplib
-    ls ($env.kiops_lib_location | path join "Cuprous.pretty" "*") | each {|p| cp $p.name $fplib}
-    [Cuprous.kicad_sym fp-lib-table sym-lib-table] | each { |name|
+    ls ($env.kiops_lib_location | path join "cuprous.pretty" "*") | each {|p| cp $p.name $fplib}
+    [cuprous.kicad_sym fp-lib-table sym-lib-table] | each { |name|
         cp ($env.kiops_lib_location | path join $name) ($projdir | path join $name) 
     }
 }
