@@ -216,6 +216,21 @@ where
 }
 
 #[derive(Debug, Clone)]
+pub struct Not<A>(pub A);
+
+impl<A> Simplifier for Not<A>
+where
+    A: Simplifier,
+{
+    fn simplify(&self, subject: &Expr) -> Option<Expr> {
+        self.0
+            .simplify(subject)
+            .is_none()
+            .then_some(subject.clone())
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct LabelAs(pub &'static str);
 
 impl Simplifier for LabelAs {

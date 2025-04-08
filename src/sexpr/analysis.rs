@@ -28,32 +28,42 @@ pub fn footprints() -> impl Simplifier {
         Cons(AnyNum, Cons(AnyNum, Or(Cons(AnyNum, Nothing), Nothing))),
     );
 
+    let model = Cons("model", Cons(AnyStr, Discard(Anything)));
+
     let reference = Cons(
         Discard("fp_text"),
         Cons("reference", Cons(AnyStr, Discard(Anything))),
     );
 
-    let footprint = Cons(
-        Discard("footprint"),
+    let footprint = {
         Cons(
-            And(AnyStr, LabelAs("library")),
-            Filter(Or(reference, Or(at, description))),
-        ),
-    );
+            Discard("footprint"),
+            Cons(
+                And(AnyStr, LabelAs("library")),
+                Filter(reference.or(at).or(description).or(model)),
+            ),
+        )
+    };
 
-    Cons(Discard("kicad_pcb"), Filter(footprint))
+    let enlist = |expr: &Expr| -> Option<Expr> { Some(Expr::list([expr.clone()])) };
+
+    Cons(Discard("kicad_pcb"), Filter(footprint.clone())).or(footprint.clone().and(enlist))
 }
 
 pub fn symbols() -> impl Simplifier {
-    let ignore_power =
-        |x: &Expr| (!x.as_atom()?.as_string()?.starts_with("power:")).then_some(x.clone());
+    let is_power_id = |x: &Expr| {
+        x.as_atom()?
+            .as_string()?
+            .starts_with("power:")
+            .then_some(x.clone())
+    };
 
-    let lib_id = || Cons("lib_id", Cons(ignore_power, Anything));
+    let is_power_symbol = Cons("lib_id", Cons(is_power_id, Nothing));
 
     let attribs = Cons("in_bom", Anything)
         .or(Cons("unit", Anything))
         .or(Cons("dnp", Anything))
-        .or(lib_id());
+        .or(Cons("lib_id", Anything));
 
     let properties = property("footprint")
         .or(property("reference"))
@@ -65,10 +75,10 @@ pub fn symbols() -> impl Simplifier {
 
     let symbol = Cons(
         Discard("symbol"),
-        Filter(attribs.or(properties)).and(Ensure(Find(lib_id()))),
+        Filter(attribs.or(properties)).and(Not(Find(is_power_symbol))),
     );
 
-    Cons(Discard("kicad_sch"), Filter(symbol))
+    Cons(Discard("kicad_sch".or("kicad_symbol_lib")), Filter(symbol))
 }
 
 pub fn sheets() -> impl Simplifier {

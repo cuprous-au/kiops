@@ -70,6 +70,19 @@ export def "install libs" [
     }
 }
 
+# Accepts filenames and lists the footprints in each 
+export def "list footprints" [] {
+    let ki_parse = $env.kiops_bin | path join ki_parse
+    $in | each { |fname| open --raw $fname |  ^$ki_parse footprints | from json | insert file $fname } | flatten
+}
+
+# Accepts filenames and lists the footprints in each 
+export def "list symbols" [] {
+    let ki_parse = $env.kiops_bin | path join ki_parse
+    $in | each { |fname| open --raw $fname |  ^$ki_parse symbols | from json | insert file $fname } | flatten
+}
+
+
 # List all the footprints in all KiCAD PCB files found under the current directory.
 # This may span multiple KiCAD projects.
 export def "survey pcbs" [] {
