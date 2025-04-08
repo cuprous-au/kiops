@@ -21,9 +21,9 @@ export def "upgrade footprints" [
 export def "upgrade symlibs" [
     symbol_dir: path
 ] {
-    ls ($symbol_dir | path join *.kicad_sym) | each { |p|  
-        let result = (ki sym upgrade $p.name) 
-        [$p.name $result]
+    glob ($symbol_dir | path join *.kicad_sym) | each { |p|  
+        let result = (ki sym upgrade $p) 
+        [$p $result]
     }
 }
 
@@ -33,10 +33,10 @@ export def "merge symlibs" [
     symlib: path
 ] {
     let ki_merge = $env.kiops_bin | path join ki_merge
-    let symlibs = ls ($symbols_dir | path join *.kicad_sym) 
-    let accum = open --raw ($symlibs | get 0.name)
+    let symlibs = glob ($symbols_dir | path join *.kicad_sym) 
+    let accum = open --raw ($symlibs | get 0)
     let merged = $symlibs | skip 1 | reduce --fold $accum { |p, accum|  
-        $accum | ^$ki_merge $p.name 
+        $accum | ^$ki_merge $p 
     }
     $merged | save --raw --force $symlib
 }
@@ -64,7 +64,7 @@ export def "install libs" [
     } 
     let fplib = $projdir | path join cuprous.pretty
     mkdir $fplib
-    ls ($env.kiops_lib_location | path join "cuprous.pretty" "*") | each {|p| cp $p.name $fplib}
+    glob ($env.kiops_lib_location | path join "cuprous.pretty" "*") | each {|p| cp $p $fplib}
     [cuprous.kicad_sym fp-lib-table sym-lib-table] | each { |name|
         cp ($env.kiops_lib_location | path join $name) ($projdir | path join $name) 
     }
