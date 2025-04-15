@@ -20,6 +20,15 @@ pub fn property(name: &str) -> impl Simplifier {
     )
 }
 
+pub fn any_property() -> impl Simplifier {
+    let string_as_symbol = |expr: &Expr| Some(Expr::key(expr.as_atom()?.as_string()?));
+
+    Cons(
+        Discard("property"),
+        Cons(string_as_symbol, Cons(trim, Discard(Anything))),
+    )
+}
+
 pub fn footprints() -> impl Simplifier {
     let description = property("description");
 
@@ -65,17 +74,17 @@ pub fn symbols() -> impl Simplifier {
         .or(Cons("dnp", Anything))
         .or(Cons("lib_id", Anything));
 
-    let properties = property("footprint")
-        .or(property("reference"))
-        .or(property("value"))
-        .or(property("MPN"))
-        .or(property("manufacturer"))
-        .or(property("supply"))
-        .or(property("description"));
+    // let properties = property("footprint")
+    //     .or(property("reference"))
+    //     .or(property("value"))
+    //     .or(property("MPN"))
+    //     .or(property("manufacturer"))
+    //     .or(property("supply"))
+    //     .or(property("description"));
 
     let symbol = Cons(
         Discard("symbol"),
-        Filter(attribs.or(properties)).and(Not(Find(is_power_symbol))),
+        Filter(attribs.or(any_property())).and(Not(Find(is_power_symbol))),
     );
 
     Cons(Discard("kicad_sch".or("kicad_symbol_lib")), Filter(symbol))

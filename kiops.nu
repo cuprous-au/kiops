@@ -152,10 +152,10 @@ export def "create bom" [
         | each { |s| open $s | ^$ki_parse symbols  | from json } 
         | flatten 
         | where lib_id != "Connector:TestPoint" and unit == 1
-        | each { |r| if $r.dnp != "yes" and $r.MPN? == null {print -e ("Missing MPN for " ++ $r.reference)}; $r }
+        | each { |r| if $r.dnp != "yes" and $r.MPN? == null {print -e ("Missing MPN for " ++ $r.Reference)}; $r }
         | update dnp { |r| if $r.dnp == "yes" {"DNP"} else {""}}
-        | sort-by --natural reference
-        | select reference manufacturer? MPN? value description? footprint? dnp supply?)
+        | sort-by --natural Reference
+        | select Reference Manufacturer? MPN? Value Description? Footprint? dnp Supply?)
 }
 
 # Create a Bill of Materials (BOM) grouped by part number from the 
@@ -171,14 +171,14 @@ export def "create bom-grouped" [
             let items = $r.items
             
             { 
-                refs: ($items.reference | gather)
-                manufacturer: ($items.manufacturer | gather)
-                MPN: $r.group
-                value: ($items.value | gather)
-                description: ($items.description | gather)
-                footprint: ($items.footprint | gather)
+                refs: ($items.Reference | gather)
+                Manufacturer: ($items.Manufacturer | gather)
+                MPN: $r.MPN
+                Value: ($items.Value | gather)
+                Description: ($items.Description | gather)
+                Footprint: ($items.Footprint | gather)
                 count: ($items | length)
-                supply: ($items.supply | gather)
+                Supply: ($items.Supply | gather)
             }
         })
 }
