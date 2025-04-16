@@ -72,15 +72,8 @@ pub fn symbols() -> impl Simplifier {
     let attribs = Cons("in_bom", Anything)
         .or(Cons("unit", Anything))
         .or(Cons("dnp", Anything))
+        .or(Cons("uuid", Anything))
         .or(Cons("lib_id", Anything));
-
-    // let properties = property("footprint")
-    //     .or(property("reference"))
-    //     .or(property("value"))
-    //     .or(property("MPN"))
-    //     .or(property("manufacturer"))
-    //     .or(property("supply"))
-    //     .or(property("description"));
 
     let symbol = Cons(
         Discard("symbol"),

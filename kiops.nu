@@ -50,7 +50,6 @@ export def "split symlibs" [
     let ki_split = $env.kiops_bin | path join ki_split
     mkdir $symbols_dir
     open --raw $symlib | ^$ki_split $symbols_dir
-    
 }
 
 # Install a copy of the Cuprous library in a KiCAD project.
@@ -70,18 +69,17 @@ export def "install libs" [
     }
 }
 
-# Accepts filenames and lists the footprints in each 
+# Accepts PCB or footprint filenames and lists the footprints in each 
 export def "list footprints" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
     $in | each { |fname| open --raw $fname |  ^$ki_parse footprints | from json | insert file $fname } | flatten
 }
 
-# Accepts filenames and lists the footprints in each 
+# Accepts schematic or symbol library filenames and lists the symbols in each 
 export def "list symbols" [] {
     let ki_parse = $env.kiops_bin | path join ki_parse
     $in | each { |fname| open --raw $fname |  ^$ki_parse symbols | from json | insert file $fname } | flatten
 }
-
 
 # List all the footprints in all KiCAD PCB files found under the current directory.
 # This may span multiple KiCAD projects.
