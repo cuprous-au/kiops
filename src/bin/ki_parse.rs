@@ -2,7 +2,7 @@ use kiops::parse_file::{parse_stdin, write_stdout, Result};
 use kiops::sexpr::analysis::{footprints, sheets, symbols};
 use kiops::sexpr::json::expr_to_json_value;
 use kiops::sexpr::parser::parse_s_expr;
-use kiops::sexpr::simplifier::Simplifier;
+use kiops::sexpr::simplifier::{Anything, Simplifier};
 use kiops::sexpr::Expr;
 use std::env;
 
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
         "footprints" => run(footprints())?,
         "symbols" => run(symbols())?,
         "sheets" => run(sheets())?,
-        "format" => run(|x: &Expr| Some(x.clone()))?,
+        "format" => run(Anything)?,
         _ => Err("argument not recognised")?,
     };
 

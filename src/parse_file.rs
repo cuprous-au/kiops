@@ -1,8 +1,9 @@
 use nom::error::VerboseError;
 use nom::{InputTake, Parser};
+use serde_json::Value;
 use std::fmt::Display;
 use std::fs::File;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdin, stdout, BufReader, Read, Write};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -36,6 +37,19 @@ where
 pub fn write_stdout<A: Display>(content: &A) -> Result<()> {
     stdout().write_all(content.to_string().as_bytes())?;
     Ok(())
+}
+
+/// Read a serde_json `Value` from a file
+pub fn read_json(path: &str) -> std::result::Result<Value, Box<dyn std::error::Error>> {
+    // Open the file in read-only mode with buffer.
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    // Read the JSON contents of the file.
+    let value = serde_json::from_reader(reader)?;
+
+    // Return the `User`.
+    Ok(value)
 }
 
 pub fn parse_with<P, T>(text: &str, mut parser: P) -> Result<T>
