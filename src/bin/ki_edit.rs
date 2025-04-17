@@ -9,7 +9,7 @@ use kiops::{
 use std::env;
 
 fn main() -> Result<()> {
-    let usage = "ki_edit: symbol_props_file";
+    let usage = "usage: ki_edit symbol_props_file";
     let mut args = env::args();
     let _exec = args.next().ok_or(usage)?;
     let fname = args.next().ok_or(usage)?;
