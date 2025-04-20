@@ -12,11 +12,14 @@ const REFERENCE: &str = "Reference";
 /// consisting of a symbol name and a property name
 pub type Key = (String, String);
 
+/// The map of properties
+pub type Props = BTreeMap<Key, Atom>;
+
 /// Interpret a serde json `Value` as an array of objects and reform this as a `BTreeMap`.
 /// Each member of each object becomes an entry in the map.
 /// Each object has a string-valued member called `REFERENCE`
 /// which becomes the first part of the key.
-pub fn extract_props(json: Value) -> Option<BTreeMap<Key, Atom>> {
+pub fn extract_props(json: Value) -> Option<Props> {
     json.as_array().map(|records| {
         let records = records.iter().filter_map(|r| {
             let record = r.as_object()?.clone();
@@ -48,7 +51,10 @@ pub fn extract_props(json: Value) -> Option<BTreeMap<Key, Atom>> {
     })
 }
 
-pub fn editor(props: BTreeMap<Key, Atom>) -> impl Simplifier {
+/// Produce a `Simplifier` that matches the s-expr representing a schematic or a symbol library.
+/// Return the input but with symbol properties updated according to the given `props`.
+/// If `props` contains an entry matching a symbol property that property's value is updated.
+pub fn editor(props: Props) -> impl Simplifier {
     let props = Rc::new(props);
 
     let property_body = move |sym_name: String| {
@@ -84,21 +90,21 @@ pub fn editor(props: BTreeMap<Key, Atom>) -> impl Simplifier {
 
     let symbol = Cons("symbol", symbol_body);
 
-    Cons("kicad_sch", Filter(symbol.or(Anything)))
+    Cons(
+        "kicad_sch".or("kicad_symbol_lib"),
+        Filter(symbol.or(Anything)),
+    )
 }
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
 
-    use serde_json::json;
-
+    use super::{editor, extract_props};
     use crate::{
         parse_file::parse_with,
-        sexpr::{parser::parse_s_expr, simplifier::Simplifier, Atom, Expr},
+        sexpr::{edit::Props, parser::parse_s_expr, simplifier::Simplifier, Atom, Expr},
     };
-
-    use super::{editor, extract_props, Key};
+    use serde_json::json;
 
     #[test]
     fn test_extract() {
@@ -334,7 +340,7 @@ mod test {
 
     #[test]
     fn test_no_edits() {
-        let m: BTreeMap<Key, Atom> = [(("".to_string(), "".to_string()), Atom::from(""))]
+        let m: Props = [(("".to_string(), "".to_string()), Atom::from(""))]
             .into_iter()
             .collect();
         let s = editor(m).simplify(&schematic_before()).unwrap();
@@ -343,7 +349,7 @@ mod test {
 
     #[test]
     fn test_edits() {
-        let m: BTreeMap<Key, Atom> = [(
+        let m: Props = [(
             ("J8".to_string(), "Footprint".to_string()),
             Atom::from("Cuprous:other_footprint"),
         )]
