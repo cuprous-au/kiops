@@ -5,8 +5,8 @@ export-env {
 }
 
 # Run a KiCAD CLI command
-export def ki [subject: string verb: string object: string] {
-    ^$env.kicad_cli $subject $verb $object
+export def ki [...args] {
+    ^$env.kicad_cli ...$args
 }
 
 # Upgrade all the footprints in a directory to the latest KiCAD version
@@ -130,9 +130,10 @@ export def "fabricate" [
     ^$env.kicad_cli pcb export drill $input --output ($dest | path join "")
     ^$env.kicad_cli pcb export gerbers $input --output ($dest | path join "")
     ^$env.kicad_cli pcb export pos $input --output ($dest | path join ($stem ++ ".pos"))
-    create bom . | save ($dest | path join ($stem ++ "-bom.csv"))
+    # create bom . | save ($dest | path join ($stem ++ "-bom.csv"))
     create bom-grouped . | save ($dest | path join ($stem ++ "-grouped-bom.csv"))
     if ("COPYRIGHT" | path exists) { cp "COPYRIGHT" $dest }
+    if ("PCB-SPEC.txt" | path exists) { cp "PCB-SPEC.txt" $dest }
     
     rm -f $output
     ^zip -r  $output $dest
@@ -141,7 +142,7 @@ export def "fabricate" [
 
 # Create a flat Bill of Materials (BOM) from the 
 # KiCAD schematic files found in the given directory
-export def "create bom" [
+export def "extract bom" [
     projdir: path # The directory containing the KiCAD project
 ] {
     cd $projdir
@@ -154,6 +155,22 @@ export def "create bom" [
         | update dnp { |r| if $r.dnp == "yes" {"DNP"} else {""}}
         | sort-by --natural Reference
         | select Reference Manufacturer? MPN? Value Description? Footprint? dnp Supply?)
+}
+
+# Create a flat Bill of Materials (BOM) from the 
+# main KiCAD schematic file found in the given directory.
+# Use the KiCAD cli to do it.
+export def "create bom" [
+    projdir: path # The directory containing the KiCAD project
+] {
+    cd $projdir
+    let project = glob *.kicad_pro | first
+    let input = $project | path parse | get stem | append "kicad_sch" | str join "." 
+    let output = (mktemp --suffix .csv)
+    ^$env.kicad_cli sch export bom --fields "Reference,Manufacturer,MPN,Value,Description,Footprint,DNP" --output $output $input
+    let result = (open $output)
+    rm $output
+    $result
 }
 
 # Create a Bill of Materials (BOM) grouped by part number from the 
@@ -169,14 +186,13 @@ export def "create bom-grouped" [
             let items = $r.items
             
             { 
-                refs: ($items.Reference | gather)
-                Manufacturer: ($items.Manufacturer | gather)
-                MPN: $r.MPN
+                Refs: ($items.Reference | gather)
+                Quantity: ($items | length)
                 Value: ($items.Value | gather)
+                Manufacturer: ($items.Manufacturer | gather)
+                Part: $r.MPN
                 Description: ($items.Description | gather)
                 Footprint: ($items.Footprint | gather)
-                count: ($items | length)
-                Supply: ($items.Supply | gather)
             }
         })
 }
